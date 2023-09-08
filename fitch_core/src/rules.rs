@@ -4,7 +4,7 @@ use crate::Prop;
 pub struct StepIndex(pub usize);
 
 /// Inference rules from from page 27 in "Logic in Computer Science" by Huth and Ryan
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Rule {
     /// ```notrust
     /// phi     psi
