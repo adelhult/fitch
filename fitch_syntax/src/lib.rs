@@ -13,8 +13,8 @@ pub enum Command {
           // TODO: Revert, LaTeX, Table
 }
 
-pub fn parse_command(s: &str) -> Command {
-    command().parse(s).unwrap()
+pub fn parse_command(s: &str) -> Result<Command, Vec<chumsky::error::Simple<char>>> {
+    command().parse(s)
 }
 
 fn command() -> impl Parser<char, Command, Error = Simple<char>> {
@@ -36,13 +36,14 @@ fn command() -> impl Parser<char, Command, Error = Simple<char>> {
     let assume = just("assume")
         .ignore_then(whitespace())
         .ignore_then(prop())
-        .map(Command::Premise);
+        .map(Command::Assume);
 
     let discharge = just("discharge").map(|_| Command::Discharge);
     let quit = just("quit").or(just("exit")).map(|_| Command::Quit);
     let help = just("help").map(|_| Command::Help);
 
     choice((rule, copy, premise, assume, discharge, quit, help))
+        .labelled("command")
         .padded()
         .then_ignore(end())
 }
@@ -51,6 +52,7 @@ fn index() -> impl Parser<char, StepIndex, Error = Simple<char>> {
     text::int(10)
         .map(|n: String| n.parse().unwrap())
         .map(StepIndex)
+        .labelled("index")
 }
 
 fn prop() -> impl Parser<char, Prop, Error = Simple<char>> {
@@ -245,4 +247,5 @@ fn rule() -> impl Parser<char, Rule, Error = Simple<char>> {
         proof_by_contradiction,
         law_of_excluded_middle,
     ))
+    .labelled("rule")
 }

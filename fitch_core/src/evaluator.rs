@@ -62,7 +62,7 @@ impl Context {
         let mut scope = self.scopes.pop().ok_or(())?;
         let mut props = scope.props.drain();
         let (starting_index, assumption) = props.nth(0).unwrap();
-        let (_, derived_prop) = props.last().unwrap();
+        let (_, derived_prop) = props.last().unwrap(); // TODO: this should not unwrap but instead return an error if it's missing
 
         let proof_box = Prop::ProofBox {
             assumption: Box::new(assumption),
