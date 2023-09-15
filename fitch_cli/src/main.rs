@@ -1,4 +1,4 @@
-use fitch_core::Context;
+use fitch_core::{Context, Error};
 use fitch_syntax::{parse_command, Command};
 use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
 
@@ -16,11 +16,14 @@ fn main() {
         let sig = line_editor.read_line(&prompt);
         match sig {
             Ok(Signal::Success(buffer)) => match parse_command(&buffer) {
-                Ok(command) => {
-                    if !run(command, &mut ctx) {
-                        break;
+                Ok(command) => match run(command, &mut ctx) {
+                    Ok(false) => break,
+                    Ok(true) => continue,
+                    Err(error) => {
+                        println!("Error: {}", error);
+                        continue;
                     }
-                }
+                },
                 Err(errors) => {
                     if let Some(error) = errors.first() {
                         println!(
@@ -41,41 +44,31 @@ fn main() {
     }
 }
 
-fn run(command: Command, ctx: &mut Context) -> bool {
-    let should_continue = match command {
-        Command::Rule(rule) => {
-            let result = ctx.apply_rule(rule);
-            println!("{:?}", result);
-            true
-        }
-        Command::Copy(i) => {
-            let result = ctx.copy(i);
-            println!("{:?}", result);
-            true
-        }
-        Command::Premise(prop) => {
-            let result = ctx.add_premise(prop);
-            println!("{:?}", result);
-            true
-        }
-        Command::Assume(prop) => {
-            let result = ctx.add_assumption(prop);
-            println!("{:?}", result);
-            true
-        }
+fn run(command: Command, ctx: &mut Context) -> Result<bool, Error> {
+    let (should_continue, result) = match command.clone() {
+        Command::Rule(rule) => (true, Some(ctx.apply_rule(&rule)?)),
+        Command::Copy(i) => (true, Some(ctx.copy(i)?)),
+        Command::Premise(prop) => (true, Some(ctx.add_premise(prop))),
+        Command::Assume(prop) => (true, Some(ctx.add_assumption(prop))),
         Command::Discharge => {
-            let result = ctx.close_scope();
-            println!("{:?}", result);
-            true
+            ctx.close_scope()?;
+            (true, None)
         }
-        Command::Quit => false,
-        Command::Help => {
-            println!("TODO: implement help menu");
-            true
-        }
+        Command::Quit => (false, None),
+        Command::Help => (true, None),
     };
 
-    //println!("{:#?}", ctx);
+    if let Some((index, prop)) = result {
+        println!(
+            "{}",
+            format!(
+                "{index: >5} | {prop} {command: >40}",
+                prop = prop,
+                index = index.to_string(),
+                command = command.to_string()
+            )
+        );
+    }
 
-    should_continue
+    Ok(should_continue)
 }

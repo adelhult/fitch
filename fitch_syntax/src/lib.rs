@@ -1,5 +1,6 @@
 use chumsky::{prelude::*, text::whitespace};
 use fitch_core::{Prop, Rule, StepIndex};
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
@@ -11,6 +12,20 @@ pub enum Command {
     Quit,
     Help, // TODO: add an Option<String> to get help about a specific rule
           // TODO: Revert, LaTeX, Table
+}
+
+impl fmt::Display for Command {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Command::Rule(rule) => write!(f, "{rule}"),
+            Command::Copy(i) => write!(f, "copy {i}"),
+            Command::Premise(_) => write!(f, "premise"),
+            Command::Assume(_) => write!(f, "assumption"),
+            Command::Discharge => write!(f, "discharged assumption"),
+            Command::Quit => write!(f, "quit"),
+            Command::Help => write!(f, "help"),
+        }
+    }
 }
 
 pub fn parse_command(s: &str) -> Result<Command, Vec<chumsky::error::Simple<char>>> {

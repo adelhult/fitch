@@ -9,4 +9,6 @@ pub enum Error {
     InvalidStepIndex { index: StepIndex },
     #[error("I expected a '{expected:?}' but got the expression '{got:?}'.")]
     ExpectedPropVariant { expected: PropVariant, got: Prop },
+    #[error("I can't close the outmost scope.")]
+    CannotCloseGlobalScope,
 }

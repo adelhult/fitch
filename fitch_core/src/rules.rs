@@ -1,7 +1,14 @@
 use crate::Prop;
+use std::fmt;
 
 #[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct StepIndex(pub usize);
+
+impl fmt::Display for StepIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// Inference rules from from page 27 in "Logic in Computer Science" by Huth and Ryan
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -131,4 +138,37 @@ pub enum Rule {
     ///  phi \/ neg phi
     /// ```
     LawOfExcludedMiddle(Prop),
+}
+
+impl fmt::Display for Rule {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Rule::AndI(phi, psi) => write!(f, "∧I {phi} {psi}"),
+            Rule::AndELhs(phi) => write!(f, "∧E_lhs {phi}"),
+            Rule::AndERhs(phi) => write!(f, "∧E_rhs {phi}"),
+            Rule::OrILhs(phi, psi) => write!(f, "∨I_lhs {phi} {psi}"),
+            Rule::OrIRhs(phi, psi) => write!(f, "∨I_rhs {phi} {psi}"),
+            Rule::OrE {
+                or_prop,
+                lhs_box,
+                rhs_box,
+            } => write!(f, "∨E {or_prop} {lhs_box} {rhs_box}"),
+            Rule::NegI(phi) => write!(f, "¬I {phi}"),
+            Rule::NegE { prop, neg_prop } => write!(f, "¬E {prop} {neg_prop}"),
+            Rule::ImplyI(phi) => write!(f, "→I {phi}"),
+            Rule::ImplyE {
+                implication,
+                lhs_proof,
+            } => write!(f, "→E {implication} {lhs_proof}"),
+            Rule::BottomE(phi, psi) => write!(f, "⊥E {phi} {psi}"),
+            Rule::DoubleNegE(phi) => write!(f, "¬¬E {phi}"),
+            Rule::ModusTollens {
+                implication,
+                negated_rhs,
+            } => write!(f, "MT {implication} {negated_rhs}"),
+            Rule::DoubleNegI(phi) => write!(f, "¬¬I {phi}"),
+            Rule::ProofByContradiction(phi) => write!(f, "PBC {phi}"),
+            Rule::LawOfExcludedMiddle(phi) => write!(f, "LEM {phi}"),
+        }
+    }
 }

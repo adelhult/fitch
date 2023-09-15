@@ -35,21 +35,25 @@ impl Context {
         }
     }
 
-    pub fn copy(&mut self, index: StepIndex) -> Result<StepIndex, Error> {
+    pub fn copy(&mut self, index: StepIndex) -> Result<(StepIndex, Prop), Error> {
         let prop = self.get_prop(index)?;
         Ok(self.add_step(prop.clone()))
     }
 
-    pub fn add_premise(&mut self, premise: Prop) -> StepIndex {
+    pub fn add_premise(&mut self, premise: Prop) -> (StepIndex, Prop) {
         // TODO: ensure that we only can add premises in the beginning
         let index = self.next_index();
-        self.scopes.last_mut().unwrap().props.insert(index, premise);
+        self.scopes
+            .last_mut()
+            .unwrap()
+            .props
+            .insert(index, premise.clone());
 
-        index
+        (index, premise)
     }
 
     /// Introduce a new scope and add an assumption to it
-    pub fn add_assumption(&mut self, assumption: Prop) -> StepIndex {
+    pub fn add_assumption(&mut self, assumption: Prop) -> (StepIndex, Prop) {
         self.scopes.push(Scope::new());
         self.add_step(assumption)
     }
@@ -58,8 +62,8 @@ impl Context {
     // TODO: Proper error handling
     /// Close the current scope and inserts a "proof box" (with the assumption and the derived proposition)
     /// in the upper scope with the same index as the starting index of the closed scope
-    pub fn close_scope(&mut self) -> Result<(), ()> {
-        let mut scope = self.scopes.pop().ok_or(())?;
+    pub fn close_scope(&mut self) -> Result<(), Error> {
+        let mut scope = self.scopes.pop().ok_or(Error::CannotCloseGlobalScope)?;
         let mut props = scope.props.drain();
         let (starting_index, assumption) = props.nth(0).unwrap();
         let (_, derived_prop) = props.last().unwrap(); // TODO: this should not unwrap but instead return an error if it's missing
@@ -71,7 +75,7 @@ impl Context {
 
         self.scopes
             .last_mut()
-            .ok_or(())?
+            .unwrap()
             .props
             .insert(starting_index, proof_box);
 
@@ -82,11 +86,11 @@ impl Context {
         StepIndex(self.index_counter.next().unwrap())
     }
 
-    fn add_step(&mut self, prop: Prop) -> StepIndex {
+    fn add_step(&mut self, prop: Prop) -> (StepIndex, Prop) {
         let index = self.next_index();
         let scope = self.scopes.last_mut().unwrap();
-        scope.props.insert(index, prop);
-        index
+        scope.props.insert(index, prop.clone());
+        (index, prop)
     }
 
     pub fn get_prop(&self, index: StepIndex) -> Result<&Prop, Error> {
@@ -108,16 +112,16 @@ impl Context {
     }
 
     /// Apply an inference rule using the current context and scope
-    pub fn apply_rule(&mut self, rule: Rule) -> Result<StepIndex, Error> {
+    pub fn apply_rule(&mut self, rule: &Rule) -> Result<(StepIndex, Prop), Error> {
         match rule {
             Rule::AndI(lhs_index, rhs_index) => {
-                let lhs = self.get_prop(lhs_index)?;
-                let rhs = self.get_prop(rhs_index)?;
+                let lhs = self.get_prop(*lhs_index)?;
+                let rhs = self.get_prop(*rhs_index)?;
                 let prop = Prop::And(Box::new(lhs.clone()), Box::new(rhs.clone()));
                 Ok(self.add_step(prop))
             }
             Rule::AndELhs(prop_index) => {
-                let prop = self.get_prop(prop_index)?;
+                let prop = self.get_prop(*prop_index)?;
                 if let Prop::And(lhs, _) = prop {
                     let prop = *lhs.clone();
                     Ok(self.add_step(prop))
@@ -129,7 +133,7 @@ impl Context {
                 }
             }
             Rule::AndERhs(prop_index) => {
-                let prop = self.get_prop(prop_index)?;
+                let prop = self.get_prop(*prop_index)?;
                 if let Prop::And(_, rhs) = prop {
                     let prop = *rhs.clone();
                     Ok(self.add_step(prop))
@@ -141,7 +145,7 @@ impl Context {
                 }
             }
             Rule::ImplyI(proof_box) => {
-                let proof_box_prop = self.get_prop(proof_box)?;
+                let proof_box_prop = self.get_prop(*proof_box)?;
                 let Prop::ProofBox {
                     assumption,
                     derived_prop,
@@ -157,13 +161,13 @@ impl Context {
                 Ok(self.add_step(prop))
             }
             Rule::OrILhs(index, other) => {
-                let prop = self.get_prop(index)?;
-                let new = Prop::Or(Box::new(prop.clone()), Box::new(other));
+                let prop = self.get_prop(*index)?;
+                let new = Prop::Or(Box::new(prop.clone()), Box::new(other.clone()));
                 Ok(self.add_step(new))
             }
             Rule::OrIRhs(other, index) => {
-                let prop = self.get_prop(index)?;
-                let new = Prop::Or(Box::new(other), Box::new(prop.clone()));
+                let prop = self.get_prop(*index)?;
+                let new = Prop::Or(Box::new(other.clone()), Box::new(prop.clone()));
                 Ok(self.add_step(new))
             }
             Rule::OrE {
@@ -171,9 +175,9 @@ impl Context {
                 lhs_box,
                 rhs_box,
             } => {
-                let or_prop = self.get_prop(or_prop)?;
-                let lhs_box = self.get_prop(lhs_box)?;
-                let rhs_box = self.get_prop(rhs_box)?;
+                let or_prop = self.get_prop(*or_prop)?;
+                let lhs_box = self.get_prop(*lhs_box)?;
+                let rhs_box = self.get_prop(*rhs_box)?;
 
                 let Prop::Or(or_lhs, or_rhs) = or_prop else {
                     return Err(Error::ExpectedPropVariant {
@@ -211,7 +215,7 @@ impl Context {
                 Ok(self.add_step(*lhs_derived_prop.clone()))
             }
             Rule::NegI(proof_box) => {
-                let proof_box = self.get_prop(proof_box)?;
+                let proof_box = self.get_prop(*proof_box)?;
 
                 let Prop::ProofBox {
                     assumption,
@@ -230,8 +234,8 @@ impl Context {
                 Ok(self.add_step(negated_prop))
             }
             Rule::NegE { prop, neg_prop } => {
-                let prop = self.get_prop(prop)?;
-                let neg_prop = self.get_prop(neg_prop)?;
+                let prop = self.get_prop(*prop)?;
+                let neg_prop = self.get_prop(*neg_prop)?;
 
                 // neg prop := prop -> bottom
                 let Prop::Imply(lhs, rhs) = neg_prop else {
@@ -246,12 +250,12 @@ impl Context {
                 Ok(self.add_step(Prop::Bottom))
             }
             Rule::BottomE(bottom_prop, prop) => {
-                let bottom_prop = self.get_prop(bottom_prop)?;
+                let bottom_prop = self.get_prop(*bottom_prop)?;
                 check_eq(bottom_prop, &Prop::Bottom)?;
-                Ok(self.add_step(prop))
+                Ok(self.add_step(prop.clone()))
             }
             Rule::DoubleNegE(double_negated_prop) => {
-                let double_negated_prop = self.get_prop(double_negated_prop)?;
+                let double_negated_prop = self.get_prop(*double_negated_prop)?;
 
                 // neg (neg phi) := (neg phi) -> bottom = (phi -> bottom) -> bottom
                 let Prop::Imply(ref prop_bottom, ref bottom) = double_negated_prop else {
@@ -278,8 +282,8 @@ impl Context {
                 implication,
                 lhs_proof,
             } => {
-                let implication = self.get_prop(implication)?;
-                let lhs_proof = self.get_prop(lhs_proof)?;
+                let implication = self.get_prop(*implication)?;
+                let lhs_proof = self.get_prop(*lhs_proof)?;
 
                 let Prop::Imply(lhs, rhs) = implication else {
                     return Err(Error::ExpectedPropVariant {
@@ -296,8 +300,8 @@ impl Context {
                 implication,
                 negated_rhs,
             } => {
-                let implication = self.get_prop(implication)?;
-                let negated_rhs = self.get_prop(negated_rhs)?;
+                let implication = self.get_prop(*implication)?;
+                let negated_rhs = self.get_prop(*negated_rhs)?;
 
                 let Prop::Imply(lhs, rhs) = implication else {
                     return Err(Error::ExpectedPropVariant {
@@ -312,12 +316,12 @@ impl Context {
                 Ok(self.add_step(neg_lhs))
             }
             Rule::DoubleNegI(prop) => {
-                let prop = self.get_prop(prop)?;
+                let prop = self.get_prop(*prop)?;
                 let neg_neg_prop = Prop::negated(Prop::negated(prop.clone()));
                 Ok(self.add_step(neg_neg_prop))
             }
             Rule::ProofByContradiction(proof_box) => {
-                let proof_box = self.get_prop(proof_box)?;
+                let proof_box = self.get_prop(*proof_box)?;
 
                 let Prop::ProofBox {
                     assumption,
@@ -346,7 +350,7 @@ impl Context {
             }
             Rule::LawOfExcludedMiddle(prop) => {
                 let neg_prop = Prop::negated(prop.clone());
-                let or_prop = Prop::Or(Box::new(prop), Box::new(neg_prop));
+                let or_prop = Prop::Or(Box::new(prop.clone()), Box::new(neg_prop));
                 Ok(self.add_step(or_prop))
             }
         }
@@ -375,13 +379,13 @@ mod tests {
         p^q conj_i 1,2
         */
         let mut ctx = Context::new();
-        let p = ctx.add_premise(Prop::Symbol("p".into()));
-        let q = ctx.add_premise(Prop::Symbol("q".into()));
-        let p_and_q = ctx.apply_rule(Rule::AndI(p, q)).unwrap();
+        let (p, _) = ctx.add_premise(Prop::Symbol("p".into()));
+        let (q, _) = ctx.add_premise(Prop::Symbol("q".into()));
+        let (_, p_and_q_prop) = ctx.apply_rule(&Rule::AndI(p, q)).unwrap();
 
         assert_eq!(
-            ctx.get_prop(p_and_q).unwrap(),
-            &Prop::And(
+            p_and_q_prop,
+            Prop::And(
                 Box::new(Prop::Symbol("p".into())),
                 Box::new(Prop::Symbol("q".into()))
             )
@@ -400,15 +404,15 @@ mod tests {
         */
 
         let mut ctx = Context::new();
-        let q = ctx.add_premise(Prop::Symbol("q".into()));
-        let p = ctx.add_assumption(Prop::Symbol("p".into()));
+        let (q, _) = ctx.add_premise(Prop::Symbol("q".into()));
+        let (p, _) = ctx.add_assumption(Prop::Symbol("p".into()));
         let _ = ctx.copy(q).unwrap();
         ctx.close_scope().unwrap();
-        let p_implies_q = ctx.apply_rule(Rule::ImplyI(p)).unwrap();
+        let (_, p_implies_q_prop) = ctx.apply_rule(&Rule::ImplyI(p)).unwrap();
 
         assert_eq!(
-            ctx.get_prop(p_implies_q).unwrap(),
-            &Prop::Imply(
+            p_implies_q_prop,
+            Prop::Imply(
                 Box::new(Prop::Symbol("p".into())),
                 Box::new(Prop::Symbol("q".into())),
             )
