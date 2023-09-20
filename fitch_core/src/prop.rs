@@ -8,19 +8,20 @@ pub enum Prop {
     And(Box<Prop>, Box<Prop>),
     Or(Box<Prop>, Box<Prop>),
     Imply(Box<Prop>, Box<Prop>),
-    ProofBox {
-        assumption: Box<Prop>,
-        derived_prop: Box<Prop>,
-    },
+    ProofBox(SubProof),
 }
+
+// TODO: Would be really nice if a subproof could uphold the invariant that it must start with an assumption step
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubProof(pub(crate) Vec<(StepIndex, Step)>);
 
 #[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct StepIndex(pub usize);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Step(Prop, StepType);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StepType {
     Rule(Rule),
     Copy(StepIndex),
@@ -41,6 +42,20 @@ pub enum PropVariant {
 impl Prop {
     pub fn negated(prop: Self) -> Self {
         Prop::Imply(Box::new(prop), Box::new(Prop::Bottom))
+    }
+}
+
+impl SubProof {
+    pub fn assumption(&self) -> &Prop {
+        &self.0[0].1.prop() // TODO: handle empty subproofs
+    }
+
+    pub fn derived_prop(&self) -> &Prop {
+        &self.0.last().unwrap().1.prop() // TODO: handle empty subproofs
+    }
+
+    pub fn starting_index(&self) -> StepIndex {
+        self.0[0].0 // TODO: handle empty subproofs
     }
 }
 
@@ -122,10 +137,12 @@ impl fmt::Display for Prop {
                 _ => write!(f, "{lhs} → {rhs}"),
             },
 
-            ProofBox {
-                assumption,
-                derived_prop,
-            } => write!(f, "[{assumption}... {derived_prop}]"),
+            ProofBox(subproof) => write!(
+                f,
+                "[{assumption}... {derived_prop}]",
+                assumption = subproof.assumption(),
+                derived_prop = subproof.derived_prop()
+            ),
         }
     }
 }

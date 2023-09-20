@@ -5,5 +5,5 @@ mod rules;
 
 pub use error::Error;
 pub use evaluator::Context;
-pub use prop::{Prop, PropVariant, Step, StepIndex, StepType};
+pub use prop::{Prop, PropVariant, Step, StepIndex, StepType, SubProof};
 pub use rules::Rule;

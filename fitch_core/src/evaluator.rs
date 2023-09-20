@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::RangeFrom};
 
-use crate::{Error, Prop, PropVariant, Rule, Step, StepIndex, StepType};
+use crate::{Error, Prop, PropVariant, Rule, Step, StepIndex, StepType, SubProof};
 
 #[derive(Debug)]
 struct Scope {
@@ -64,14 +64,9 @@ impl Context {
     /// in the upper scope with the same index as the starting index of the closed scope
     pub fn close_scope(&mut self) -> Result<(), Error> {
         let mut scope = self.scopes.pop().ok_or(Error::CannotCloseGlobalScope)?;
-        let mut props = scope.steps.drain();
-        let (starting_index, assumption) = props.nth(0).unwrap();
-        let (_, derived_prop) = props.last().unwrap(); // TODO: this should not unwrap but instead return an error if it's missing
-
-        let proof_box = Prop::ProofBox {
-            assumption: Box::new(assumption.prop_owned()),
-            derived_prop: Box::new(derived_prop.prop_owned()),
-        };
+        let subproof = SubProof(scope.steps.drain().collect());
+        let starting_index = subproof.starting_index();
+        let proof_box = Prop::ProofBox(subproof);
 
         self.scopes
             .last_mut()
@@ -147,18 +142,17 @@ impl Context {
             }
             Rule::ImplyI(proof_box) => {
                 let proof_box_prop = self.get_prop(*proof_box)?;
-                let Prop::ProofBox {
-                    assumption,
-                    derived_prop,
-                } = proof_box_prop
-                else {
+                let Prop::ProofBox(subproof) = proof_box_prop else {
                     return Err(Error::ExpectedPropVariant {
                         expected: PropVariant::ProofBox,
                         got: proof_box_prop.clone(),
                     });
                 };
 
-                let prop = Prop::Imply(assumption.clone(), derived_prop.clone());
+                let prop = Prop::Imply(
+                    Box::new(subproof.assumption().clone()),
+                    Box::new(subproof.derived_prop().clone()),
+                );
                 Ok(self.add_step(Step::new(prop, StepType::Rule(rule.clone()))))
             }
             Rule::OrILhs(index, other) => {
@@ -187,54 +181,45 @@ impl Context {
                     });
                 };
 
-                let Prop::ProofBox {
-                    assumption: lhs_assumption,
-                    derived_prop: lhs_derived_prop,
-                } = lhs_box
-                else {
+                let Prop::ProofBox(lhs_subproof) = lhs_box else {
                     return Err(Error::ExpectedPropVariant {
                         expected: PropVariant::Or,
                         got: lhs_box.clone(),
                     });
                 };
 
-                let Prop::ProofBox {
-                    assumption: rhs_assumption,
-                    derived_prop: rhs_derived_prop,
-                } = lhs_box
-                else {
+                let Prop::ProofBox(rhs_subproof) = lhs_box else {
                     return Err(Error::ExpectedPropVariant {
                         expected: PropVariant::Or,
                         got: rhs_box.clone(),
                     });
                 };
 
-                check_eq(or_lhs, lhs_assumption)?;
-                check_eq(or_rhs, rhs_assumption)?;
-                check_eq(lhs_derived_prop, rhs_derived_prop)?;
+                check_eq(or_lhs, lhs_subproof.assumption())?;
+                check_eq(or_rhs, rhs_subproof.assumption())?;
+                check_eq(lhs_subproof.derived_prop(), rhs_subproof.derived_prop())?;
 
                 Ok(self.add_step(Step::new(
-                    *lhs_derived_prop.clone(),
+                    lhs_subproof.derived_prop().clone(),
                     StepType::Rule(rule.clone()),
                 )))
             }
             Rule::NegI(proof_box) => {
                 let proof_box = self.get_prop(*proof_box)?;
 
-                let Prop::ProofBox {
-                    assumption,
-                    derived_prop,
-                } = proof_box
-                else {
+                let Prop::ProofBox(subproof) = proof_box else {
                     return Err(Error::ExpectedPropVariant {
                         expected: PropVariant::ProofBox,
                         got: proof_box.clone(),
                     });
                 };
 
-                check_eq(derived_prop, &Prop::Bottom)?;
+                check_eq(subproof.derived_prop(), &Prop::Bottom)?;
 
-                let negated_prop = Prop::Imply(assumption.clone(), Box::new(Prop::Bottom));
+                let negated_prop = Prop::Imply(
+                    Box::new(subproof.assumption().clone()),
+                    Box::new(Prop::Bottom),
+                );
                 Ok(self.add_step(Step::new(negated_prop, StepType::Rule(rule.clone()))))
             }
             Rule::NegE { prop, neg_prop } => {
@@ -327,11 +312,7 @@ impl Context {
             Rule::ProofByContradiction(proof_box) => {
                 let proof_box = self.get_prop(*proof_box)?;
 
-                let Prop::ProofBox {
-                    assumption,
-                    derived_prop,
-                } = proof_box
-                else {
+                let Prop::ProofBox(subproof) = proof_box else {
                     return Err(Error::ExpectedPropVariant {
                         expected: PropVariant::ProofBox,
                         got: proof_box.clone(),
@@ -339,16 +320,16 @@ impl Context {
                 };
 
                 // check if the assumption is negated (i.e. has the form phi -> bottom)
-                let Prop::Imply(ref lhs, ref rhs) = **assumption else {
+                let Prop::Imply(ref lhs, ref rhs) = subproof.assumption() else {
                     return Err(Error::ExpectedPropVariant {
                         expected: PropVariant::Imply,
-                        got: *assumption.clone(),
+                        got: subproof.assumption().clone(),
                     });
                 };
                 check_eq(rhs, &Prop::Bottom)?;
 
                 // also check that the proof box ends with bottom
-                check_eq(derived_prop, &Prop::Bottom)?;
+                check_eq(subproof.derived_prop(), &Prop::Bottom)?;
 
                 Ok(self.add_step(Step::new(*lhs.clone(), StepType::Rule(rule.clone()))))
             }
