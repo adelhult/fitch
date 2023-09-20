@@ -16,21 +16,21 @@ impl Scope {
 }
 
 #[derive(Debug)]
-pub struct Context {
-    scopes: Vec<Scope>,
+pub struct Proof {
+    context: Vec<Scope>,
     index_counter: RangeFrom<usize>,
 }
 
-impl Default for Context {
+impl Default for Proof {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Context {
+impl Proof {
     pub fn new() -> Self {
         Self {
-            scopes: vec![Scope::new()],
+            context: vec![Scope::new()],
             index_counter: (0usize..),
         }
     }
@@ -43,7 +43,7 @@ impl Context {
     pub fn add_premise(&mut self, premise: Prop) -> StepIndex {
         // TODO: ensure that we only can add premises in the beginning
         let index = self.next_index();
-        self.scopes
+        self.context
             .last_mut()
             .unwrap()
             .steps
@@ -54,7 +54,7 @@ impl Context {
 
     /// Introduce a new scope and add an assumption to it
     pub fn add_assumption(&mut self, assumption: Prop) -> StepIndex {
-        self.scopes.push(Scope::new());
+        self.context.push(Scope::new());
         self.add_step(Step::new(assumption, StepType::Assumption))
     }
 
@@ -63,12 +63,12 @@ impl Context {
     /// Close the current scope and inserts a "proof box" (with the assumption and the derived proposition)
     /// in the upper scope with the same index as the starting index of the closed scope
     pub fn close_scope(&mut self) -> Result<(), Error> {
-        let mut scope = self.scopes.pop().ok_or(Error::CannotCloseGlobalScope)?;
+        let mut scope = self.context.pop().ok_or(Error::CannotCloseGlobalScope)?;
         let subproof = SubProof(scope.steps.drain().collect());
         let starting_index = subproof.starting_index();
         let proof_box = Prop::ProofBox(subproof);
 
-        self.scopes
+        self.context
             .last_mut()
             .unwrap()
             .steps
@@ -83,18 +83,18 @@ impl Context {
 
     fn add_step(&mut self, step: Step) -> StepIndex {
         let index = self.next_index();
-        let scope = self.scopes.last_mut().unwrap();
+        let scope = self.context.last_mut().unwrap();
         scope.steps.insert(index, step);
         index
     }
 
     pub fn get_prop(&self, index: StepIndex) -> Result<&Prop, Error> {
-        self.get_step_helper(self.scopes.len() - 1, index)
+        self.get_step_helper(self.context.len() - 1, index)
             .map(|step| step.prop())
     }
 
     fn get_step_helper(&self, scope_level: usize, index: StepIndex) -> Result<&Step, Error> {
-        let Some(scope) = self.scopes.get(scope_level) else {
+        let Some(scope) = self.context.get(scope_level) else {
             return Err(Error::InvalidStepIndex { index });
         };
 
@@ -363,7 +363,7 @@ mod tests {
         q   premise
         p^q conj_i 1,2
         */
-        let mut ctx = Context::new();
+        let mut ctx = Proof::new();
         let p = ctx.add_premise(Prop::Symbol("p".into()));
         let q = ctx.add_premise(Prop::Symbol("q".into()));
         let p_and_q_prop = ctx.apply_rule(&Rule::AndI(p, q)).unwrap();
@@ -388,7 +388,7 @@ mod tests {
         4. p -> q ->e 1, 2
         */
 
-        let mut ctx = Context::new();
+        let mut ctx = Proof::new();
         let q = ctx.add_premise(Prop::Symbol("q".into()));
         let p = ctx.add_assumption(Prop::Symbol("p".into()));
         let _ = ctx.copy(q).unwrap();

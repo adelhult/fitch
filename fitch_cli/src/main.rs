@@ -1,4 +1,4 @@
-use fitch_core::{Context, Error};
+use fitch_core::{Error, Proof};
 use fitch_syntax::{parse_command, Command};
 use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
 
@@ -10,13 +10,13 @@ fn main() {
         DefaultPromptSegment::Empty,
     );
 
-    let mut ctx = Context::new();
+    let mut proof = Proof::new();
 
     loop {
         let sig = line_editor.read_line(&prompt);
         match sig {
             Ok(Signal::Success(buffer)) => match parse_command(&buffer) {
-                Ok(command) => match run(command, &mut ctx) {
+                Ok(command) => match run(command, &mut proof) {
                     Ok(false) => break,
                     Ok(true) => continue,
                     Err(error) => {
@@ -44,7 +44,7 @@ fn main() {
     }
 }
 
-fn run(command: Command, ctx: &mut Context) -> Result<bool, Error> {
+fn run(command: Command, ctx: &mut Proof) -> Result<bool, Error> {
     let (should_continue, result) = match command.clone() {
         Command::Rule(rule) => (true, Some(ctx.apply_rule(&rule)?)),
         Command::Copy(i) => (true, Some(ctx.copy(i)?)),
