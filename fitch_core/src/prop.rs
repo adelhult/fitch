@@ -1,3 +1,4 @@
+use crate::Rule;
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -13,10 +14,18 @@ pub enum Prop {
     },
 }
 
-impl Prop {
-    pub fn negated(prop: Self) -> Self {
-        Prop::Imply(Box::new(prop), Box::new(Prop::Bottom))
-    }
+#[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
+pub struct StepIndex(pub usize);
+
+#[derive(Debug, Clone)]
+pub struct Step(Prop, StepType);
+
+#[derive(Debug, Clone)]
+pub enum StepType {
+    Rule(Rule),
+    Copy(StepIndex),
+    Premise,
+    Assumption,
 }
 
 #[derive(Clone, Debug)]
@@ -27,6 +36,34 @@ pub enum PropVariant {
     Or,
     Imply,
     ProofBox,
+}
+
+impl Prop {
+    pub fn negated(prop: Self) -> Self {
+        Prop::Imply(Box::new(prop), Box::new(Prop::Bottom))
+    }
+}
+
+impl Step {
+    pub fn new(prop: Prop, step_type: StepType) -> Self {
+        Self(prop, step_type)
+    }
+
+    pub fn prop_owned(self) -> Prop {
+        self.0
+    }
+
+    pub fn prop(&self) -> &Prop {
+        &self.0
+    }
+
+    pub fn step_type_owned(self) -> StepType {
+        self.1
+    }
+
+    pub fn step_type(&self) -> &StepType {
+        &self.1
+    }
 }
 
 impl From<&Prop> for PropVariant {

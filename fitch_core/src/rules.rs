@@ -1,8 +1,5 @@
-use crate::Prop;
+use crate::{Prop, StepIndex};
 use std::fmt;
-
-#[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
-pub struct StepIndex(pub usize);
 
 impl fmt::Display for StepIndex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

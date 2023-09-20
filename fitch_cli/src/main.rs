@@ -58,16 +58,8 @@ fn run(command: Command, ctx: &mut Context) -> Result<bool, Error> {
         Command::Help => (true, None),
     };
 
-    if let Some((index, prop)) = result {
-        println!(
-            "{}",
-            format!(
-                "{index: >5} | {prop} {command: >40}",
-                prop = prop,
-                index = index.to_string(),
-                command = command.to_string()
-            )
-        );
+    if let Some(index) = result {
+        println!("{index}");
     }
 
     Ok(should_continue)
