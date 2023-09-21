@@ -3,8 +3,8 @@ use std::{collections::HashMap, ops::RangeFrom};
 use crate::{Error, Prop, PropVariant, Rule, Step, StepIndex, StepType, SubProof};
 
 #[derive(Debug)]
-struct Scope {
-    steps: HashMap<StepIndex, Step>,
+pub(crate) struct Scope {
+    pub(crate) steps: HashMap<StepIndex, Step>,
 }
 
 impl Scope {
@@ -17,8 +17,8 @@ impl Scope {
 
 #[derive(Debug)]
 pub struct Proof {
-    context: Vec<Scope>,
-    index_counter: RangeFrom<usize>,
+    pub(crate) context: Vec<Scope>,
+    pub(crate) index_counter: RangeFrom<usize>,
 }
 
 impl Default for Proof {
@@ -31,7 +31,7 @@ impl Proof {
     pub fn new() -> Self {
         Self {
             context: vec![Scope::new()],
-            index_counter: (0usize..),
+            index_counter: (1usize..),
         }
     }
 
@@ -63,8 +63,12 @@ impl Proof {
     /// Close the current scope and inserts a "proof box" (with the assumption and the derived proposition)
     /// in the upper scope with the same index as the starting index of the closed scope
     pub fn close_scope(&mut self) -> Result<(), Error> {
-        let mut scope = self.context.pop().ok_or(Error::CannotCloseGlobalScope)?;
-        let subproof = SubProof(scope.steps.drain().collect());
+        if self.context.len() == 1 {
+            return Err(Error::CannotCloseGlobalScope);
+        }
+
+        let mut scope = self.context.pop().unwrap();
+        let subproof = SubProof::new(scope.steps.drain().collect());
         let starting_index = subproof.starting_index();
         let proof_box = Prop::ProofBox(subproof);
 

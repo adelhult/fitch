@@ -15,7 +15,7 @@ pub enum Prop {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubProof(pub(crate) Vec<(StepIndex, Step)>);
 
-#[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(Hash, PartialEq, Eq, Clone, Copy, Debug, PartialOrd, Ord)]
 pub struct StepIndex(pub usize);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,6 +46,11 @@ impl Prop {
 }
 
 impl SubProof {
+    pub fn new(mut steps: Vec<(StepIndex, Step)>) -> Self {
+        steps.sort_by(|(i1, _), (i2, _)| i1.cmp(i2));
+        Self(steps)
+    }
+
     pub fn assumption(&self) -> &Prop {
         &self.0[0].1.prop() // TODO: handle empty subproofs
     }
@@ -143,6 +148,17 @@ impl fmt::Display for Prop {
                 assumption = subproof.assumption(),
                 derived_prop = subproof.derived_prop()
             ),
+        }
+    }
+}
+
+impl fmt::Display for StepType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StepType::Rule(rule) => write!(f, "{rule}"),
+            StepType::Copy(i) => write!(f, "copy {i}"),
+            StepType::Premise => write!(f, "premise"),
+            StepType::Assumption => write!(f, "assumption"),
         }
     }
 }

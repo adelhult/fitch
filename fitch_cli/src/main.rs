@@ -1,4 +1,4 @@
-use fitch_core::{Error, Proof};
+use fitch_core::{print_proof, Error, Proof};
 use fitch_syntax::{parse_command, Command};
 use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
 
@@ -44,22 +44,22 @@ fn main() {
     }
 }
 
-fn run(command: Command, ctx: &mut Proof) -> Result<bool, Error> {
+fn run(command: Command, proof: &mut Proof) -> Result<bool, Error> {
     let (should_continue, result) = match command.clone() {
-        Command::Rule(rule) => (true, Some(ctx.apply_rule(&rule)?)),
-        Command::Copy(i) => (true, Some(ctx.copy(i)?)),
-        Command::Premise(prop) => (true, Some(ctx.add_premise(prop))),
-        Command::Assume(prop) => (true, Some(ctx.add_assumption(prop))),
+        Command::Rule(rule) => (true, Some(proof.apply_rule(&rule)?)),
+        Command::Copy(i) => (true, Some(proof.copy(i)?)),
+        Command::Premise(prop) => (true, Some(proof.add_premise(prop))),
+        Command::Assume(prop) => (true, Some(proof.add_assumption(prop))),
         Command::Discharge => {
-            ctx.close_scope()?;
+            proof.close_scope()?;
             (true, None)
         }
         Command::Quit => (false, None),
         Command::Help => (true, None),
     };
 
-    if let Some(index) = result {
-        println!("{index}");
+    if let Some(_) = result {
+        print_proof(proof);
     }
 
     Ok(should_continue)
