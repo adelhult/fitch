@@ -1,44 +1,64 @@
 use crate::{Proof, Prop, Step, StepIndex, SubProof};
 
+// TODO: I should really replace all the hard-coded magic numbers with proper constants.
+const WIDTH: usize = 70;
+
 pub fn print_proof(proof: &Proof) {
     for (level, scope) in proof.context.iter().enumerate() {
         let mut steps = scope.steps.iter().collect::<Vec<_>>();
         steps.sort_by(|(i1, _), (i2, _)| i1.cmp(i2));
-        println!("{}", steps_to_string(steps.as_slice(), level));
+
+        print!("{}", steps_to_string(steps.as_slice(), level, false));
     }
 }
 
-// TODO: use write! macro instead of allocating new strings for each recursive call
-fn steps_to_string(steps: &[(&StepIndex, &Step)], indent: usize) -> String {
+fn steps_to_string(steps: &[(&StepIndex, &Step)], indent_level: usize, closed: bool) -> String {
     let mut s = String::new();
+
+    // Add a line if we are inside of a subproof
+    if indent_level > 0 {
+        let line = format!(
+            "    {indent}┌{hline}┐{indent}\n",
+            indent = if indent_level > 0 { "|" } else { "" }.repeat(indent_level - 1),
+            hline = "─".repeat(WIDTH - indent_level * 2 - 7)
+        );
+        s.push_str(&line);
+    }
+
+    // Print all the steps (any possibly recursivly print completed subproofs)
     for (i, step) in steps {
         match step.prop() {
-            Prop::ProofBox(SubProof(subproof)) => s.push_str(&steps_to_string(
-                subproof
-                    .iter()
-                    .map(|(i, step)| (i, step))
-                    .collect::<Vec<_>>()
-                    .as_slice(),
-                indent + 1,
-            )),
-            // prop with indentioni: >4
+            Prop::ProofBox(SubProof(subproof)) => {
+                s.push_str(&steps_to_string(
+                    subproof
+                        .iter()
+                        .map(|(i, step)| (i, step))
+                        .collect::<Vec<_>>()
+                        .as_slice(),
+                    indent_level + 1,
+                    true,
+                ));
+            }
+
             _ => s.push_str(&format!(
-                "{i: >3} {prop_with_indent: <40} {step_type}\n",
-                i = i.to_string(),
-                step_type = step.step_type(),
-                prop_with_indent = prop_with_indent(step.prop(), indent),
+                "{index: >3} {indent} {prop: <prop_width$} {step_type: >20} {indent}\n",
+                index = i.to_string(),
+                step_type = step.step_type().to_string(),
+                indent = if indent_level > 0 { "│" } else { "" }.repeat(indent_level),
+                prop = step.prop().to_string(),
+                prop_width = 40 - indent_level * 2,
             )),
         }
     }
-    s
-}
 
-fn prop_with_indent(prop: &Prop, indent: usize) -> String {
-    let mut s = String::new();
-    for _ in 0..indent {
-        s.push_str("  ");
+    if closed && indent_level > 0 {
+        let line = format!(
+            "    {indent}└{hline}┘{indent}\n",
+            indent = if indent_level > 0 { "|" } else { "" }.repeat(indent_level - 1),
+            hline = "─".repeat(WIDTH - indent_level * 2 - 7)
+        );
+        s.push_str(&line);
     }
-    s.push_str(" | ");
-    s.push_str(&prop.to_string());
+
     s
 }

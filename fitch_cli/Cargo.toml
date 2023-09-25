@@ -8,4 +8,5 @@ edition = "2021"
 [dependencies]
 fitch_core = { path = "../fitch_core" }
 fitch_syntax = { path = "../fitch_syntax" }
+rand = "0.8.5"
 reedline = "0.23.0"

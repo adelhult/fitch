@@ -1,6 +1,33 @@
 use fitch_core::{print_proof, Error, Proof};
 use fitch_syntax::{parse_command, Command};
+use rand::seq::SliceRandom;
 use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
+
+const WELCOME: &str = r#"Hi! I'm Fitch, a command-line editor
+for natural deduction proofs (with propositional logic).
+
+Get started by typing a command, for example:
+premise p & q
+rule &e 1
+copy 5
+assume (p | q) -> -q 
+discharge
+quit
+help
+"#;
+
+fn say_goodbye() {
+    let phrase = [
+        "Bye!",
+        "See you later!",
+        "Have a nice day!",
+        "See you soon!",
+        "See you next time!",
+    ];
+    let mut rng = rand::thread_rng();
+    let goodbye = phrase.choose(&mut rng).unwrap();
+    println!("{goodbye}");
+}
 
 fn main() {
     let mut line_editor = Reedline::create();
@@ -12,11 +39,13 @@ fn main() {
 
     let mut proof = Proof::new();
 
+    println!("{WELCOME}");
+
     loop {
         let sig = line_editor.read_line(&prompt);
         match sig {
             Ok(Signal::Success(buffer)) => match parse_command(&buffer) {
-                Ok(command) => match run(command, &mut proof) {
+                Ok(command) => match run(command, &mut proof, &mut line_editor) {
                     Ok(false) => break,
                     Ok(true) => continue,
                     Err(error) => {
@@ -34,31 +63,50 @@ fn main() {
                 }
             },
             Ok(Signal::CtrlD) | Ok(Signal::CtrlC) => {
-                println!("\nAborted!");
+                say_goodbye();
                 break;
             }
-            x => {
-                println!("Event: {:?}", x);
-            }
+            // TODO: Add CTRL+Z
+            _ => (),
         }
     }
 }
 
-fn run(command: Command, proof: &mut Proof) -> Result<bool, Error> {
-    let (should_continue, result) = match command.clone() {
-        Command::Rule(rule) => (true, Some(proof.apply_rule(&rule)?)),
-        Command::Copy(i) => (true, Some(proof.copy(i)?)),
-        Command::Premise(prop) => (true, Some(proof.add_premise(prop))),
-        Command::Assume(prop) => (true, Some(proof.add_assumption(prop))),
+fn run(command: Command, proof: &mut Proof, line_editor: &mut Reedline) -> Result<bool, Error> {
+    let (should_continue, clear_screen) = match command.clone() {
+        // TODO: remove the result from the tuple
+        Command::Rule(rule) => {
+            proof.apply_rule(&rule)?;
+            (true, true)
+        }
+        Command::Copy(i) => {
+            proof.copy(i)?;
+            (true, true)
+        }
+        Command::Premise(prop) => {
+            proof.add_premise(prop);
+            (true, true)
+        }
+        Command::Assume(prop) => {
+            proof.add_assumption(prop);
+            (true, true)
+        }
         Command::Discharge => {
             proof.close_scope()?;
-            (true, None)
+            (true, true)
         }
-        Command::Quit => (false, None),
-        Command::Help => (true, None),
+        Command::Quit => {
+            say_goodbye();
+            (false, false)
+        }
+        Command::Help => {
+            println!("TODO: add help. You are own your own for now :^)");
+            (true, false)
+        }
     };
 
-    if let Some(_) = result {
+    if clear_screen {
+        line_editor.clear_screen().unwrap();
         print_proof(proof);
     }
 
