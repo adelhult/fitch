@@ -91,9 +91,9 @@ fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         just("discharge").map(|_| Token::Discharge),
         just("quit").map(|_| Token::Quit),
         just("help").map(|_| Token::Help),
+        rule_name().map(Token::RuleName),
         index().map(Token::Index),
         prop().map(Token::Prop),
-        rule_name().map(Token::RuleName),
     ))
     .map_with_span(|token, span| (token, span))
     .padded()
