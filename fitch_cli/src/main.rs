@@ -7,8 +7,8 @@ use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
 fn greet() {
     println!(
         r#"{greeting}
-A command-line editor for natural deduction
-proofs (for propositional logic).
+A command-line editor for writing natural deduction
+(propositional logic) proofs.
     
 {intro}
 "#,
