@@ -1,27 +1,28 @@
 use colored::*;
-use fitch_core::{print_proof, Error, Proof};
+use fitch_core::{latex, print_proof, Error, Proof};
 use fitch_syntax::{parse_command, Command, Source};
 use rand::seq::SliceRandom;
 use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
 
 fn greet() {
     println!(
-        r#"{greeting},
+        r#"{greeting}
 A command-line editor for natural deduction
 proofs (for propositional logic).
     
 {intro}
 "#,
-        greeting = "Hi! I'm Fitch".bold(),
+        greeting = "Hi! I'm Fitch.".bold(),
         intro = "Get started by typing a command, for example:
 premise p & q
 rule &e 1
 copy 5
 assume (p | q) -> -q 
 discharge
-quit
-help"
-            .bright_black()
+latex
+help
+quit"
+            .italic()
     );
 }
 
@@ -105,6 +106,16 @@ fn run(command: Command, proof: &mut Proof, line_editor: &mut Reedline) -> Resul
         }
         Command::Help => {
             println!("TODO: add help. You are own your own for now :^)");
+            (true, false)
+        }
+        Command::Latex => {
+            if let Some(latex_text) = latex(&proof) {
+                println!("{imports}{latex_text}", imports = "Remember to also include these packages:\n\\usepackage{amsmath}\n\\usepackage{logicproof}\n\n".bright_black());
+            } else {
+                println!(
+                    "Could not typeset this proof. Maybe you have not closed all your proof boxes?"
+                );
+            }
             (true, false)
         }
     };

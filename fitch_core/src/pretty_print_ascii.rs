@@ -19,7 +19,7 @@ fn steps_to_string(steps: &[(&StepIndex, &Step)], indent_level: usize, closed: b
     if indent_level > 0 {
         let line = format!(
             "    {indent}┌{hline}┐{indent}\n",
-            indent = if indent_level > 0 { "|" } else { "" }.repeat(indent_level - 1),
+            indent = if indent_level > 0 { "│" } else { "" }.repeat(indent_level - 1),
             hline = "─".repeat(WIDTH - indent_level * 2 - 7)
         );
         s.push_str(&line);
@@ -54,7 +54,7 @@ fn steps_to_string(steps: &[(&StepIndex, &Step)], indent_level: usize, closed: b
     if closed && indent_level > 0 {
         let line = format!(
             "    {indent}└{hline}┘{indent}\n",
-            indent = if indent_level > 0 { "|" } else { "" }.repeat(indent_level - 1),
+            indent = if indent_level > 0 { "│" } else { "" }.repeat(indent_level - 1),
             hline = "─".repeat(WIDTH - indent_level * 2 - 7)
         );
         s.push_str(&line);

@@ -15,8 +15,10 @@ pub enum Command {
     Assume(Prop),
     Discharge,
     Quit,
-    Help, // TODO: add an Option<String> to get help about a specific rule
-          // TODO: Revert, LaTeX, Table
+    Help,
+    Latex,
+    // TODO: add an Option<String> to get help about a specific rule
+    // TODO: Revert, Table
 }
 
 pub fn parse_command(s: &str) -> Result<Command, Vec<Report<'_>>> {
@@ -51,6 +53,7 @@ enum Token {
     Discharge,
     Quit,
     Help,
+    Latex,
     Index(StepIndex),
     Prop(Prop),
     RuleName(RuleName),
@@ -69,6 +72,7 @@ impl fmt::Display for Token {
             Token::Index(i) => write!(f, "{i}"),
             Token::Prop(prop) => write!(f, "{prop}"),
             Token::RuleName(name) => write!(f, "{name}"),
+            Token::Latex => write!(f, "latex"),
         }
     }
 }
@@ -76,6 +80,7 @@ impl fmt::Display for Token {
 fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
     choice((
         just("rule").map(|_| Token::Rule),
+        just("latex").map(|_| Token::Latex),
         just("copy").map(|_| Token::Copy),
         just("premise").map(|_| Token::Premise),
         just("assume").map(|_| Token::Assume),
@@ -112,6 +117,7 @@ fn command() -> impl Parser<Token, Command, Error = Simple<Token>> {
             Token::Discharge => Command::Discharge,
             Token::Quit => Command::Quit,
             Token::Help => Command::Help,
+            Token::Latex => Command::Latex,
         },
     ))
     .labelled("command")
