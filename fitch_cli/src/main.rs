@@ -1,10 +1,10 @@
 use fitch_core::{print_proof, Error, Proof};
-use fitch_syntax::{parse_command, Command};
+use fitch_syntax::{parse_command, Command, Source};
 use rand::seq::SliceRandom;
 use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
 
 const WELCOME: &str = r#"Hi! I'm Fitch, a command-line editor
-for natural deduction proofs (with propositional logic).
+for natural deduction proofs (for propositional logic).
 
 Get started by typing a command, for example:
 premise p & q
@@ -44,7 +44,7 @@ fn main() {
     loop {
         let sig = line_editor.read_line(&prompt);
         match sig {
-            Ok(Signal::Success(buffer)) => match parse_command(&buffer) {
+            Ok(Signal::Success(line)) => match parse_command(&line) {
                 Ok(command) => match run(command, &mut proof, &mut line_editor) {
                     Ok(false) => break,
                     Ok(true) => continue,
@@ -53,14 +53,9 @@ fn main() {
                         continue;
                     }
                 },
-                Err(errors) => {
-                    if let Some(error) = errors.first() {
-                        println!(
-                            "Error when trying to parse {}.",
-                            error.label().unwrap_or_else(|| "command")
-                        )
-                    }
-                }
+                Err(errors) => errors
+                    .into_iter()
+                    .for_each(|report| report.eprint(Source::from(&line)).unwrap()),
             },
             Ok(Signal::CtrlD) | Ok(Signal::CtrlC) => {
                 say_goodbye();

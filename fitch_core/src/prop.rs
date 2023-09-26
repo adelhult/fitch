@@ -1,7 +1,7 @@
 use crate::Rule;
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Prop {
     Bottom,
     Symbol(String),
@@ -12,16 +12,16 @@ pub enum Prop {
 }
 
 // TODO: Would be really nice if a subproof could uphold the invariant that it must start with an assumption step
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SubProof(pub(crate) Vec<(StepIndex, Step)>);
 
 #[derive(Hash, PartialEq, Eq, Clone, Copy, Debug, PartialOrd, Ord)]
 pub struct StepIndex(pub usize);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Step(Prop, StepType);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StepType {
     Rule(Rule),
     Copy(StepIndex),
