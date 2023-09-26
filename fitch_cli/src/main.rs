@@ -1,20 +1,29 @@
+use colored::*;
 use fitch_core::{print_proof, Error, Proof};
 use fitch_syntax::{parse_command, Command, Source};
 use rand::seq::SliceRandom;
 use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
 
-const WELCOME: &str = r#"Hi! I'm Fitch, a command-line editor
-for natural deduction proofs (for propositional logic).
-
-Get started by typing a command, for example:
+fn greet() {
+    println!(
+        r#"{greeting},
+A command-line editor for natural deduction
+proofs (for propositional logic).
+    
+{intro}
+"#,
+        greeting = "Hi! I'm Fitch".bold(),
+        intro = "Get started by typing a command, for example:
 premise p & q
 rule &e 1
 copy 5
 assume (p | q) -> -q 
 discharge
 quit
-help
-"#;
+help"
+            .bright_black()
+    );
+}
 
 fn say_goodbye() {
     let phrase = [
@@ -39,7 +48,7 @@ fn main() {
 
     let mut proof = Proof::new();
 
-    println!("{WELCOME}");
+    greet();
 
     loop {
         let sig = line_editor.read_line(&prompt);
