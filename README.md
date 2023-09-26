@@ -1,6 +1,6 @@
 # Fitch
 Fitch is a small command-line editor for writing natural deduction
-(propositional logic) proofs. However, the program hasn't been extensively tested and was just written to get a chance to play around with propositional logic and the wonderful `chumsky` parser combinator library. But it can also be rather 
+(propositional logic) proofs. However, the program hasn't been extensively tested and was just written to get a chance to play around with propositional logic and the wonderful `chumsky` parser combinator library. But it can be rather helpful for generating LaTeX and avoid having to manually typeset proofs.
 
 See the video for a short demo:
 
