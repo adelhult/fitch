@@ -93,8 +93,11 @@ impl Proof {
     }
 
     pub fn get_prop(&self, index: StepIndex) -> Result<&Prop, Error> {
+        self.get_step(index).map(|step| step.prop())
+    }
+
+    pub fn get_step(&self, index: StepIndex) -> Result<&Step, Error> {
         self.get_step_helper(self.context.len() - 1, index)
-            .map(|step| step.prop())
     }
 
     fn get_step_helper(&self, scope_level: usize, index: StepIndex) -> Result<&Step, Error> {
@@ -341,6 +344,37 @@ impl Proof {
                 let neg_prop = Prop::negated(prop.clone());
                 let or_prop = Prop::Or(Box::new(prop.clone()), Box::new(neg_prop));
                 Ok(self.add_step(Step::new(or_prop, StepType::Rule(rule.clone()))))
+            }
+        }
+    }
+
+    pub fn undo(&mut self) {
+        let next_index = self.index_counter.next().unwrap();
+
+        // If we don't have any steps, we can't undo anything, except restart at 1
+        if next_index == 1 {
+            self.index_counter = 1..;
+            return;
+        }
+
+        let latest_index = next_index - 1;
+        // Revert the index counter
+        self.index_counter = latest_index..;
+
+        let latest_step_type = self
+            .get_step(StepIndex(latest_index))
+            .unwrap()
+            .step_type()
+            .clone();
+
+        match latest_step_type {
+            StepType::Rule(_) | StepType::Copy(_) | StepType::Premise => {
+                let scope = self.context.last_mut().unwrap();
+                scope.steps.remove(&StepIndex(latest_index));
+            }
+            StepType::Assumption => {
+                // remove the entire scope
+                self.context.pop();
             }
         }
     }

@@ -14,6 +14,7 @@ pub enum Command {
     Premise(Prop),
     Assume(Prop),
     Discharge,
+    Undo,
     Quit,
     Help,
     Latex,
@@ -51,6 +52,7 @@ enum Token {
     Premise,
     Assume,
     Discharge,
+    Undo,
     Quit,
     Help,
     Latex,
@@ -73,6 +75,7 @@ impl fmt::Display for Token {
             Token::Prop(prop) => write!(f, "{prop}"),
             Token::RuleName(name) => write!(f, "{name}"),
             Token::Latex => write!(f, "latex"),
+            Token::Undo => write!(f, "undo"),
         }
     }
 }
@@ -80,6 +83,7 @@ impl fmt::Display for Token {
 fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
     choice((
         just("rule").map(|_| Token::Rule),
+        just("undo").map(|_| Token::Undo),
         just("latex").map(|_| Token::Latex),
         just("copy").map(|_| Token::Copy),
         just("premise").map(|_| Token::Premise),
@@ -115,6 +119,7 @@ fn command() -> impl Parser<Token, Command, Error = Simple<Token>> {
         rule,
         select! {
             Token::Discharge => Command::Discharge,
+            Token::Undo => Command::Undo,
             Token::Quit => Command::Quit,
             Token::Help => Command::Help,
             Token::Latex => Command::Latex,

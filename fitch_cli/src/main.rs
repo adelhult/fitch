@@ -19,6 +19,7 @@ rule &e 1
 copy 5
 assume (p | q) -> -q 
 discharge
+undo
 latex
 help
 quit"
@@ -71,7 +72,6 @@ fn main() {
                 say_goodbye();
                 break;
             }
-            // TODO: Add CTRL+Z
             _ => (),
         }
     }
@@ -98,6 +98,10 @@ fn run(command: Command, proof: &mut Proof, line_editor: &mut Reedline) -> Resul
         }
         Command::Discharge => {
             proof.close_scope()?;
+            (true, true)
+        }
+        Command::Undo => {
+            proof.undo();
             (true, true)
         }
         Command::Quit => {
